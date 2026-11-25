@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Brew Haven · POS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      ink:"#0b1f33", panel:"#0e2438", panel2:"#123049", line:"#1d425f",
+      muted:"#7f9bb5", card:"#b9d9ef", card2:"#a7cdea", accent:"#2dd4a8", amber:"#f0b429",
+    },
+    fontFamily: { sans: ["Segoe UI","system-ui","sans-serif"] },
+  }},
+};
+</script>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="font-sans text-white antialiased overflow-hidden">
+
+<!-- ============================================================
+     LOGIN SCREEN
+     ============================================================ -->
+<div id="loginScreen" class="fixed inset-0 z-[100] bg-ink flex items-center justify-center p-5">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-6">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-accent text-ink grid place-items-center font-black text-2xl mb-3">B</div>
+      <h1 class="text-2xl font-bold tracking-tight">Brew Haven</h1>
+      <p class="text-muted text-sm mt-1">Sign in to continue</p>
+    </div>
+
+    <div class="flex gap-2 mb-5 p-1 rounded-xl bg-panel border border-line">
+      <button id="tabAdmin" class="flex-1 h-10 rounded-lg text-sm font-bold bg-accent text-ink">Admin</button>
+      <button id="tabCashier" class="flex-1 h-10 rounded-lg text-sm font-bold text-muted">Cashier</button>
+    </div>
+
+    <!-- Admin credentials -->
+    <form id="adminForm" class="rounded-2xl bg-panel border border-line p-5 space-y-3.5">
+      <label class="block text-xs font-bold text-muted">Username
+        <input id="adminUser" autocomplete="username" placeholder="admin" value=""
+          class="mt-1 w-full h-11 px-3 rounded-lg bg-ink border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60" />
+      </label>
+      <label class="block text-xs font-bold text-muted">Password
+        <input id="adminPass" type="password" autocomplete="current-password" placeholder="••••••••"
+          class="mt-1 w-full h-11 px-3 rounded-lg bg-ink border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60" />
+      </label>
+      <button type="submit" class="w-full h-11 rounded-lg bg-accent text-ink text-sm font-bold">Sign in as Admin</button>
+      <p class="text-[11px] text-muted text-center">Full access — profit, costing &amp; realtime stock.</p>
+    </form>
+
+    <!-- Cashier name + code -->
+    <form id="cashierForm" class="hidden rounded-2xl bg-panel border border-line p-5 space-y-3.5">
+      <label class="block text-xs font-bold text-muted">Your name
+        <input id="cashName" autocomplete="name" placeholder="e.g. Maria"
+          class="mt-1 w-full h-11 px-3 rounded-lg bg-ink border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60" />
+      </label>
+      <label class="block text-xs font-bold text-muted">Access code
+        <input id="cashCode" type="password" inputmode="numeric" autocomplete="off" placeholder="••••"
+          class="mt-1 w-full h-11 px-3 rounded-lg bg-ink border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60 tracking-widest" />
+      </label>
+      <button type="submit" class="w-full h-11 rounded-lg bg-amber text-ink text-sm font-bold">Enter cashier dashboard</button>
+      <p class="text-[11px] text-muted text-center">POS counter only — name + code required.</p>
+    </form>
+
+    <p id="loginError" class="hidden text-xs text-red-400 font-semibold text-center mt-4 leading-relaxed"></p>
+
+    <p id="loginHint" class="text-[11px] text-muted/70 text-center mt-5">First run: admin / admin123 · cashier code 1234 — change them after import.</p>
+  </div>
+</div>
+
+<!-- ============================================================
+     APP SHELL
+     ============================================================ -->
+<div id="app" class="hidden">
+
+  <!-- ================= POS SHELL (cashier + admin counter) ================= -->
+  <div id="posShell" class="flex h-dvh">
+    <aside class="hidden md:flex w-14 shrink-0 flex-col items-center bg-panel border-r border-line py-4 gap-1">
+      <button class="w-9 h-9 grid place-items-center rounded-lg bg-accent text-ink font-bold text-sm" title="Brew Haven">B</button>
+      <div class="flex-1 flex flex-col items-center gap-1 pt-2" id="nav"></div>
+      <button class="w-9 h-9 grid place-items-center rounded-lg hover:bg-panel2 text-muted" id="posLogout" title="Sign out">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12H3m0 0 4-4m-4 4 4 4M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg>
+      </button>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="flex items-center gap-3 px-3 md:px-4 h-12 shrink-0 border-b border-line bg-panel">
+        <span class="flex items-center gap-1.5 text-sm text-white/90 select-none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>
+          <span class="hidden sm:inline">Cashier</span>
+        </span>
+
+        <div class="flex-1 max-w-xs mx-auto hidden md:block">
+          <div class="relative">
+            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="search" type="text" placeholder="Search cafe menu..."
+              class="w-full h-8 pl-8 pr-3 rounded-md bg-ink border border-line text-sm placeholder:text-muted focus:outline-none focus:border-accent/60" />
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 md:gap-4 ml-auto text-sm text-muted">
+          <span id="dbPill" class="hidden sm:inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-panel2 border border-line text-[11px] font-semibold text-muted">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber"></span><span id="dbText">Connecting…</span>
+          </span>
+          <span id="roleChip" class="hidden lg:inline-flex h-7 px-2.5 items-center rounded-full bg-panel2 border border-line text-[11px] font-bold text-muted">Cashier</span>
+          <button class="md:hidden w-8 h-8 grid place-items-center rounded-md hover:bg-panel2" id="mSearchBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </button>
+          <button class="w-8 h-8 grid place-items-center rounded-md hover:bg-panel2 relative" id="ordersBtn" title="Orders queue">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+            <span id="queueDot" class="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-amber text-ink text-[10px] font-bold grid place-items-center hidden">0</span>
+          </button>
+          <button class="md:hidden w-8 h-8 grid place-items-center rounded-md hover:bg-panel2 relative" id="mCartBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h7.6a1.5 1.5 0 0 0 1.5-1.1L20.5 8H7"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg>
+            <span id="mCartDot" class="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-amber text-ink text-[10px] font-bold grid place-items-center hidden">0</span>
+          </button>
+          <button class="md:hidden w-8 h-8 grid place-items-center rounded-md hover:bg-panel2" id="mLogoutBtn" title="Sign out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12H3m0 0 4-4m-4 4 4 4M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="mSearchWrap" class="md:hidden hidden px-3 py-2 border-b border-line bg-panel">
+        <input id="searchM" type="text" placeholder="Search cafe menu..."
+          class="w-full h-8 px-3 rounded-md bg-ink border border-line text-sm placeholder:text-muted focus:outline-none focus:border-accent/60" />
+      </div>
+
+      <div class="flex-1 min-h-0 flex">
+        <div class="flex-1 min-w-0 flex flex-col">
+          <div class="flex gap-2 px-3 md:px-4 py-3 overflow-x-auto no-scrollbar shrink-0" id="cats"></div>
+          <div class="flex-1 overflow-y-auto thin-scroll px-3 md:px-4 pb-24 md:pb-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5" id="grid"></div>
+            <p id="emptyMenu" class="hidden text-center text-muted text-sm py-12">No items found.</p>
+          </div>
+        </div>
+
+        <aside class="hidden md:flex w-[340px] lg:w-[380px] shrink-0 flex-col border-l border-line bg-panel" id="orderDesk">
+          <div class="px-4 pt-3 pb-2 shrink-0">
+            <div class="flex items-center justify-between">
+              <h2 class="text-2xl font-bold tracking-tight" id="orderNo">&mdash;</h2>
+              <button class="w-8 h-8 grid place-items-center rounded-md hover:bg-panel2 hover:text-white text-muted" id="clearDesk" title="Clear order">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14"/></svg>
+              </button>
+            </div>
+            <div class="mt-2.5 flex bg-panel2 p-0.5 rounded-lg border border-line" id="typeToggle">
+              <button data-type="Dine in" class="type-btn flex-1 py-1.5 rounded-md text-xs font-bold bg-accent text-ink">Dine in</button>
+              <button data-type="Takeaway" class="type-btn flex-1 py-1.5 rounded-md text-xs font-bold text-muted">Take out</button>
+            </div>
+            <button id="sentToggle" class="mt-3 w-full flex items-center justify-between px-3 h-9 rounded-md bg-panel2 border border-line text-sm text-white/90">
+              <span>Sent Articles (<span id="sentCount">0</span>)</span>
+              <svg id="sentChev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="transition-transform"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="sentList" class="hidden mt-2 space-y-1 text-sm text-muted"></div>
+            <button id="sendDirect" class="mt-3 w-full flex items-center justify-between px-3 h-9 rounded-md bg-panel2 border border-line text-sm font-medium hover:border-accent/50 hover:text-accent disabled:opacity-40">
+              <span>Send to kitchen</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto thin-scroll px-4 pb-2" id="orderList"></div>
+          <div class="shrink-0 border-t border-line px-4 py-3 space-y-1.5">
+            <div class="flex items-center justify-between text-sm text-muted"><span>Subtotal</span><span class="tabular-nums" id="subDesk">₱0.00</span></div>
+            <div class="flex items-center justify-between text-sm text-muted"><span>Service charge (5%)</span><span class="tabular-nums" id="svcDesk">₱0.00</span></div>
+            <div class="flex items-center justify-between text-base font-bold pt-1.5 border-t border-line"><span>Total</span><span class="tabular-nums" id="totalDesk">₱0.00</span></div>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+              <button id="payDesk" class="h-10 rounded-lg bg-panel2 border border-line text-sm font-semibold hover:border-accent/50 disabled:opacity-40" disabled>Pay</button>
+              <button id="sendDesk" class="h-10 rounded-lg bg-accent/15 border border-accent/40 text-accent text-sm font-semibold disabled:opacity-40" disabled>Send</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ADMIN SHELL ================= -->
+  <div id="adminShell" class="hidden h-dvh">
+    <div class="flex h-full">
+      <!-- admin sidebar -->
+      <aside id="adminSide" class="hidden md:flex w-56 shrink-0 flex-col bg-panel border-r border-line py-4">
+        <div class="flex items-center gap-2.5 px-4 pb-4">
+          <div class="w-9 h-9 rounded-xl bg-accent text-ink grid place-items-center font-black">B</div>
+          <div>
+            <div class="font-bold text-sm leading-tight">Brew Haven</div>
+            <div class="text-[11px] text-muted">Admin</div>
+          </div>
+        </div>
+        <nav class="flex-1 px-2 space-y-1 overflow-y-auto thin-scroll" id="adminNav">
+          <button data-view="dash" class="aview w-full flex items-center gap-2.5 px-3 h-10 rounded-lg text-sm font-semibold bg-accent text-ink">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg> Dashboard</button>
+          <button data-view="reports" class="aview w-full flex items-center gap-2.5 px-3 h-10 rounded-lg text-sm font-semibold text-muted hover:bg-panel2 hover:text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 11h16"/></svg> Reports</button>
+          <button data-view="orders" class="aview w-full flex items-center gap-2.5 px-3 h-10 rounded-lg text-sm font-semibold text-muted hover:bg-panel2 hover:text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg> Orders</button>
+          <button data-view="menu" class="aview w-full flex items-center gap-2.5 px-3 h-10 rounded-lg text-sm font-semibold text-muted hover:bg-panel2 hover:text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v4H4zM6 8v12M18 8v12"/></svg> Menu</button>
+          <button data-view="stock" class="aview w-full flex items-center gap-2.5 px-3 h-10 rounded-lg text-sm font-semibold text-muted hover:bg-panel2 hover:text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8l-9-5-9 5v8l9 5z"/><path d="M3.3 7.3 12 12l8.7-4.7M12 12v9"/></svg> Ingredients</button>
+          <button data-view="costing" class="aview w-full flex items-center gap-2.5 px-3 h-10 rounded-lg text-sm font-semibold text-muted hover:bg-panel2 hover:text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/></svg> Costing</button>
+        </nav>
+        <div class="px-4 pt-3 border-t border-line">
+          <button id="switchRoleBtn" class="mt-3 w-full h-9 rounded-lg bg-panel2 border border-line text-xs font-bold text-muted hover:text-white hover:border-red-400/40">Sign out</button>
+        </div>
+      </aside>
+
+      <!-- admin mobile topbar -->
+      <div class="flex-1 min-w-0 flex flex-col">
+        <header class="md:hidden flex items-center gap-2 h-12 px-3 bg-panel border-b border-line shrink-0">
+          <button id="adminMenuBtn" class="w-9 h-9 grid place-items-center rounded-lg hover:bg-panel2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+          <span class="font-bold" id="adminMobileTitle">Dashboard</span>
+        </header>
+
+        <!-- admin content -->
+        <main class="flex-1 overflow-y-auto thin-scroll p-4 md:p-6 pb-24 md:pb-6" id="adminMain">
+
+          <!-- ===== DASHBOARD (profit analysis) ===== -->
+          <section class="aview-block" id="view-dash">
+            <div class="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h1 class="text-xl md:text-2xl font-bold tracking-tight">Profit analysis</h1>
+                <p class="text-sm text-muted mt-0.5" id="dashDate"></p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="kpiGrid"></div>
+
+            <div class="grid lg:grid-cols-3 gap-4">
+              <div class="lg:col-span-2 rounded-2xl bg-panel border border-line p-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div class="flex items-center gap-2">
+                    <h2 class="font-bold">Revenue vs cost</h2>
+                    <div class="flex gap-1" id="chartRange">
+                      <button data-days="7"  class="cr h-6 px-2 rounded-md text-[11px] font-bold border border-accent text-accent bg-accent/10">7d</button>
+                      <button data-days="14" class="cr h-6 px-2 rounded-md text-[11px] font-bold border border-line text-muted bg-panel2">14d</button>
+                      <button data-days="30" class="cr h-6 px-2 rounded-md text-[11px] font-bold border border-line text-muted bg-panel2">30d</button>
+                    </div>
+                  </div>
+                  <div class="flex gap-3 text-[11px] text-muted">
+                    <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-accent inline-block"></i>Revenue</span>
+                    <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-amber inline-block"></i>Cost</span>
+                    <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-[#3b82f6] inline-block"></i>Profit</span>
+                  </div>
+                </div>
+                <div class="relative" id="chartWrap">
+                  <div class="h-44 flex items-end gap-2 border-b border-line px-1" id="revChart"></div>
+                  <div class="flex gap-2 pt-2 px-1 text-[10px] text-muted" id="revChartLabels"></div>
+                  <div id="chartTip" class="pointer-events-none absolute z-30 hidden px-2.5 py-1.5 rounded-lg bg-ink/95 border border-line text-[11px] leading-relaxed text-white shadow-xl whitespace-nowrap"></div>
+                </div>
+              </div>
+
+              <div class="rounded-2xl bg-panel border border-line p-4">
+                <h2 class="font-bold mb-3">Top margins</h2>
+                <div class="space-y-3" id="marginList"></div>
+                <p class="text-[11px] text-muted mt-4 leading-relaxed">Gross profit = price − recipe cost. Excludes rent &amp; wages.</p>
+              </div>
+            </div>
+
+            <div class="rounded-2xl bg-panel border border-line p-4 mt-4">
+              <div class="flex flex-wrap items-center gap-2 mb-3">
+                <h2 class="font-bold">Sales summary</h2>
+                <span class="text-xs text-muted" id="dashSalesCount"></span>
+                <div class="ml-auto flex flex-wrap items-center gap-1.5">
+                  <div class="flex gap-1" id="dashSaleType">
+                    <button data-v="all" class="sf h-7 px-2.5 rounded-full text-[11px] font-bold border border-accent text-accent bg-accent/10">All types</button>
+                    <button data-v="Dine in" class="sf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Dine in</button>
+                    <button data-v="Takeaway" class="sf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Take out</button>
+                  </div>
+                  <div class="flex gap-1" id="dashSalePay">
+                    <button data-v="all" class="pf h-7 px-2.5 rounded-full text-[11px] font-bold border border-accent text-accent bg-accent/10">All</button>
+                    <button data-v="Cash" class="pf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Cash</button>
+                    <button data-v="GCash" class="pf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">GCash</button>
+                    <button data-v="Card" class="pf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Card</button>
+                  </div>
+                </div>
+              </div>
+              <div class="overflow-auto max-h-[22rem] thin-scroll -mx-4 px-4 md:mx-0 md:px-0">
+                <table class="w-full text-sm min-w-[640px]">
+                  <thead class="sticky top-0 z-10 bg-panel"><tr class="text-muted text-[11px] uppercase tracking-wide">
+                    <th class="text-left py-2">Order</th><th class="text-left">Time</th><th class="text-left">Type</th>
+                    <th class="text-left">Payment</th><th class="text-right">Total</th><th class="text-right">Cost</th><th class="text-right">Profit</th>
+                  </tr></thead>
+                  <tbody id="salesTable" class="divide-y divide-line/60"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===== REPORTS ===== -->
+          <section class="hidden aview-block" id="view-reports">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h1 class="text-xl md:text-2xl font-bold">Reports</h1>
+                <p class="text-sm text-muted" id="reportSubtitle">Select a date to view its saved sales</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="repPrev" class="w-9 h-9 rounded-lg bg-panel2 border border-line text-lg font-bold text-muted hover:text-white">‹</button>
+                <strong class="text-sm min-w-[130px] text-center" id="repMonth"></strong>
+                <button id="repNext" class="w-9 h-9 rounded-lg bg-panel2 border border-line text-lg font-bold text-muted hover:text-white">›</button>
+              </div>
+            </div>
+
+            <div class="grid lg:grid-cols-3 gap-4">
+              <!-- profit calendar -->
+              <div class="lg:col-span-2 rounded-2xl bg-panel border border-line p-4">
+                <h2 class="font-bold mb-3">Profit calendar</h2>
+                <div class="grid grid-cols-7 gap-1.5 mb-1.5" id="repWeekdays"></div>
+                <div class="grid grid-cols-7 gap-1.5" id="repCalendar"></div>
+                <div class="flex gap-4 mt-4 text-[11px] text-muted">
+                  <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-accent inline-block"></i>Profit</span>
+                  <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-red-400 inline-block"></i>Loss</span>
+                  <span class="flex items-center gap-1.5"><i class="w-2 h-2 rounded-full bg-line inline-block"></i>No sales</span>
+                </div>
+              </div>
+
+              <!-- selected day stats -->
+              <div class="rounded-2xl bg-panel border border-line p-4">
+                <h2 class="font-bold mb-3" id="repDayTitle">Day summary</h2>
+                <div class="grid grid-cols-2 gap-3" id="repStats"></div>
+
+                <h3 class="text-xs font-bold text-muted uppercase tracking-wide mt-5 mb-2">Order type</h3>
+                <div class="space-y-2" id="repTypes"></div>
+              </div>
+            </div>
+
+            <!-- sales summary for selected date -->
+            <div class="rounded-2xl bg-panel border border-line p-4 mt-4">
+              <div class="flex flex-wrap items-center gap-2 mb-3">
+                <h2 class="font-bold">Sales summary</h2>
+                <span class="text-xs text-muted" id="repSalesLabel">Completed payments for the selected date</span>
+                <div class="ml-auto flex flex-wrap items-center gap-1.5">
+                  <div class="flex gap-1" id="repSaleType">
+                    <button data-v="all" class="rtsf h-7 px-2.5 rounded-full text-[11px] font-bold border border-accent text-accent bg-accent/10">All types</button>
+                    <button data-v="Dine in" class="rtsf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Dine in</button>
+                    <button data-v="Takeaway" class="rtsf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Take out</button>
+                  </div>
+                  <div class="flex gap-1" id="repSalePay">
+                    <button data-v="all" class="rpsf h-7 px-2.5 rounded-full text-[11px] font-bold border border-accent text-accent bg-accent/10">All</button>
+                    <button data-v="Cash" class="rpsf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Cash</button>
+                    <button data-v="GCash" class="rpsf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">GCash</button>
+                    <button data-v="Card" class="rpsf h-7 px-2.5 rounded-full text-[11px] font-bold border border-line text-muted bg-panel2">Card</button>
+                  </div>
+                </div>
+              </div>
+              <div class="overflow-auto max-h-[26rem] thin-scroll -mx-4 px-4 md:mx-0 md:px-0">
+                <table class="w-full text-sm min-w-[640px]">
+                  <thead class="sticky top-0 z-10 bg-panel"><tr class="text-muted text-[11px] uppercase tracking-wide">
+                    <th class="text-left py-2">Order</th><th class="text-left">Time</th><th class="text-left">Type</th>
+                    <th class="text-left">Payment</th><th class="text-right">Total</th><th class="text-right">Cost</th><th class="text-right">Profit</th>
+                  </tr></thead>
+                  <tbody id="repSalesTable" class="divide-y divide-line/60"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===== ORDERS ===== -->
+          <section class="hidden aview-block" id="view-orders">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h1 class="text-xl md:text-2xl font-bold">Orders queue</h1>
+              <div class="flex flex-wrap gap-2">
+                <div class="flex gap-1.5" id="typeFilters">
+                  <button data-t="all"       class="tf h-8 px-3.5 rounded-full text-xs font-bold border border-accent text-accent bg-accent/10">All types</button>
+                  <button data-t="Dine in"  class="tf h-8 px-3.5 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Dine in</button>
+                  <button data-t="Takeaway" class="tf h-8 px-3.5 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Take out</button>
+                </div>
+                <div class="flex gap-1.5 overflow-x-auto no-scrollbar" id="qFilters">
+                  <button data-f="all"     class="qf h-8 px-3.5 rounded-full text-xs font-bold border border-accent text-accent bg-accent/10">All</button>
+                  <button data-f="pending" class="qf h-8 px-3.5 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Pending</button>
+                  <button data-f="ready"   class="qf h-8 px-3.5 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Ready</button>
+                  <button data-f="paid"    class="qf h-8 px-3.5 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Paid</button>
+                </div>
+              </div>
+            </div>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" id="adminOrders"></div>
+          </section>
+
+          <!-- ===== MENU CRUD ===== -->
+          <section class="hidden aview-block" id="view-menu">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h1 class="text-xl md:text-2xl font-bold">Menu &amp; stock</h1>
+                <p class="text-sm text-muted">Control what the cashier can sell</p>
+              </div>
+              <button id="addItemBtn" class="h-10 px-4 rounded-lg bg-accent text-ink text-sm font-bold">+ Add item</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <div class="relative flex-1 min-w-[190px]">
+                <input id="menuSearch" placeholder="Search drink…" class="w-full h-9 pl-8 pr-3 rounded-lg bg-panel border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60" />
+                <svg class="absolute left-2.5 top-2.5 text-muted" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              </div>
+              <select id="menuCat" class="h-9 px-2 rounded-lg bg-panel border border-line text-sm text-white focus:outline-none focus:border-accent/60">
+                <option value="all">All categories</option>
+                <option>Coffee</option><option>Non-coffee</option><option>Pastries</option><option>Meals</option>
+              </select>
+              <button id="menuAvailBtn" data-v="all" class="h-9 px-3 rounded-lg text-xs font-bold border border-line text-muted bg-panel2">All items</button>
+              <span class="text-xs text-muted ml-auto" id="menuCount"></span>
+            </div>
+            <div class="rounded-2xl bg-panel border border-line overflow-hidden">
+              <div class="overflow-auto max-h-[62vh] thin-scroll">
+                <table class="w-full text-sm min-w-[680px]">
+                  <thead class="sticky top-0 z-10 bg-panel2"><tr class="text-muted text-[11px] uppercase tracking-wide">
+                    <th class="text-left px-4 py-3">Item</th><th class="text-left px-4 py-3">Category</th>
+                    <th class="text-right px-4 py-3">Price</th><th class="text-left px-4 py-3">Status</th><th class="text-right px-4 py-3">Actions</th>
+                  </tr></thead>
+                  <tbody id="menuTable" class="divide-y divide-line/60"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===== INGREDIENTS (realtime tracking) ===== -->
+          <section class="hidden aview-block" id="view-stock">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h1 class="text-xl md:text-2xl font-bold">Ingredients · realtime</h1>
+                <p class="text-sm text-muted">Stock levels update live when orders are placed</p>
+              </div>
+              <button id="addIngBtn" class="h-10 px-4 rounded-lg bg-accent text-ink text-sm font-bold">+ Add ingredient</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+              <div class="relative flex-1 min-w-[190px]">
+                <input id="stockSearch" placeholder="Search ingredient…" class="w-full h-9 pl-8 pr-3 rounded-lg bg-panel border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60" />
+                <svg class="absolute left-2.5 top-2.5 text-muted" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              </div>
+              <button id="stockLowBtn" data-v="off" class="h-9 px-3 rounded-lg text-xs font-bold border border-line text-muted bg-panel2">Low stock only</button>
+              <span class="text-xs text-muted ml-auto" id="stockCount"></span>
+            </div>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" id="stockCards"></div>
+
+            <div class="rounded-2xl bg-panel border border-line p-4 mt-5">
+              <div class="flex items-center justify-between mb-3">
+                <h2 class="font-bold">Movement log</h2>
+                <span class="text-xs text-muted">latest 30</span>
+              </div>
+              <div class="space-y-1.5 max-h-72 overflow-y-auto thin-scroll" id="moveList"></div>
+            </div>
+          </section>
+
+          <!-- ===== COSTING ===== -->
+          <section class="hidden aview-block" id="view-costing">
+            <h1 class="text-xl md:text-2xl font-bold mb-1">Ingredient costing</h1>
+            <p class="text-sm text-muted mb-4">Cost per unit = purchase price ÷ purchased quantity</p>
+
+            <div class="rounded-2xl bg-panel border border-line overflow-hidden mb-5">
+              <div class="overflow-auto max-h-[52vh] thin-scroll">
+                <table class="w-full text-sm min-w-[640px]">
+                  <thead class="sticky top-0 z-10 bg-panel2"><tr class="text-muted text-[11px] uppercase tracking-wide">
+                    <th class="text-left px-4 py-3">Ingredient</th><th class="text-right px-4 py-3">Purchased</th>
+                    <th class="text-right px-4 py-3">Purchase price</th><th class="text-right px-4 py-3">Cost / unit</th>
+                    <th class="text-right px-4 py-3">On hand</th><th class="text-right px-4 py-3">Actions</th>
+                  </tr></thead>
+                  <tbody id="ingTable" class="divide-y divide-line/60"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="rounded-2xl bg-panel border border-line overflow-hidden">
+              <div class="px-4 py-3 bg-panel2 flex items-center justify-between">
+                <h2 class="font-bold text-sm">Product profitability</h2>
+                <span class="text-[11px] text-muted">recipe cost vs selling price</span>
+              </div>
+              <div class="overflow-auto max-h-[52vh] thin-scroll">
+                <table class="w-full text-sm min-w-[680px]">
+                  <thead class="sticky top-0 z-10 bg-panel2"><tr class="text-muted text-[11px] uppercase tracking-wide">
+                    <th class="text-left px-4 py-3">Product</th><th class="text-right px-4 py-3">Recipe cost</th>
+                    <th class="text-right px-4 py-3">Selling price</th><th class="text-right px-4 py-3">Gross profit</th>
+                    <th class="text-right px-4 py-3">Margin</th><th class="text-right px-4 py-3">Recipe</th>
+                  </tr></thead>
+                  <tbody id="costTable" class="divide-y divide-line/60"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <!-- Live status — bottom-left -->
+        <div id="liveChip" class="fixed bottom-3 left-3 md:left-[236px] z-30 inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-panel/95 border border-line text-[11px] font-bold text-muted shadow-lg backdrop-blur">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent live-dot"></span>
+          <span id="liveLabel">Live · just now</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- admin mobile nav overlay -->
+    <div id="adminOverlay" class="hidden fixed inset-0 bg-black/60 z-40 md:hidden"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     POS DRAWERS / BOTTOM BAR
+     ============================================================ -->
+<div id="overlay" class="fixed inset-0 bg-black/60 z-40 hidden md:hidden"></div>
+<aside id="orderMob" class="fixed inset-y-0 right-0 w-[92vw] max-w-sm bg-panel border-l border-line z-50 flex flex-col translate-x-full transition-transform duration-200 md:hidden">
+  <div class="flex items-center justify-between px-4 h-12 border-b border-line shrink-0">
+    <div class="flex items-center gap-2">
+      <button id="closeMob" class="w-8 h-8 grid place-items-center rounded-md hover:bg-panel2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <span class="font-bold text-lg" id="orderNoM">&mdash;</span>
+    </div>
+    <span class="text-xs text-muted" id="typeLabelM">Dine in</span>
+  </div>
+  <!-- Dine in / Take out (mobile) -->
+  <div class="px-4 py-2.5 border-b border-line">
+    <div class="flex bg-panel2 p-0.5 rounded-lg border border-line" id="typeToggleM">
+      <button data-type="Dine in" class="type-btn flex-1 py-2 rounded-md text-xs font-bold bg-accent text-ink">Dine in</button>
+      <button data-type="Takeaway" class="type-btn flex-1 py-2 rounded-md text-xs font-bold text-muted">Take out</button>
+    </div>
+  </div>
+  <div class="flex-1 overflow-y-auto thin-scroll" id="orderListM"></div>
+  <div class="shrink-0 border-t border-line px-4 py-3 space-y-1.5">
+    <div class="flex items-center justify-between text-sm text-muted"><span>Subtotal</span><span class="tabular-nums" id="subMob">₱0.00</span></div>
+    <div class="flex items-center justify-between text-sm text-muted"><span>Service (5%)</span><span class="tabular-nums" id="svcMob">₱0.00</span></div>
+    <div class="flex items-center justify-between text-base font-bold pt-1.5 border-t border-line"><span>Total</span><span class="tabular-nums" id="totalMob">₱0.00</span></div>
+    <div class="grid grid-cols-2 gap-2 pt-2">
+      <button id="payMob" class="h-10 rounded-lg bg-panel2 border border-line text-sm font-semibold disabled:opacity-40" disabled>Pay</button>
+      <button id="sendMob" class="h-10 rounded-lg bg-accent/15 border border-accent/40 text-accent text-sm font-semibold disabled:opacity-40" disabled>Send</button>
+    </div>
+  </div>
+</aside>
+
+<div id="queueOverlay" class="fixed inset-0 bg-black/60 z-40 hidden"></div>
+<aside id="queuePanel" class="fixed inset-y-0 right-0 w-[94vw] max-w-md bg-panel border-l border-line z-50 flex flex-col translate-x-full transition-transform duration-200">
+  <div class="flex items-center justify-between px-4 h-12 border-b border-line shrink-0">
+    <div class="flex items-center gap-2">
+      <button id="closeQueue" class="w-8 h-8 grid place-items-center rounded-md hover:bg-panel2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <span class="font-bold text-lg">Orders</span>
+    </div>
+    <span class="text-xs text-muted">Queue</span>
+  </div>
+  <div class="flex gap-1.5 px-4 py-2.5 border-b border-line overflow-x-auto no-scrollbar" id="qFilters2">
+    <button data-f="all"     class="qf2 h-7 px-3 rounded-full text-xs font-bold border border-accent text-accent bg-accent/10">All</button>
+    <button data-f="pending" class="qf2 h-7 px-3 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Pending</button>
+    <button data-f="ready"   class="qf2 h-7 px-3 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Ready</button>
+    <button data-f="paid"    class="qf2 h-7 px-3 rounded-full text-xs font-bold border border-line text-muted bg-panel2">Paid</button>
+  </div>
+  <div class="flex-1 overflow-y-auto thin-scroll p-4 space-y-3" id="queueList"></div>
+</aside>
+
+<div class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-panel border-t border-line pb-[env(safe-area-inset-bottom)]" id="mobBar">
+  <div class="flex justify-end px-3 -mt-7">
+    <button id="sendFab" class="flex items-center gap-1.5 h-9 px-4 rounded-full bg-panel2 border border-line text-sm font-semibold shadow-lg disabled:opacity-40" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      Send (<span id="sendFabN">0</span>)
+    </button>
+  </div>
+  <div class="flex items-center gap-2 px-3 py-2.5">
+    <div class="flex-1 flex gap-1.5 overflow-x-auto no-scrollbar" id="catsM"></div>
+    <button id="basketBtn" class="shrink-0 flex items-center gap-1.5 h-9 px-3 rounded-full bg-panel2 border border-line text-sm font-semibold">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h7.6a1.5 1.5 0 0 0 1.5-1.1L20.5 8H7"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg>
+      Basket
+    </button>
+    <button id="payFab" class="shrink-0 flex items-center gap-1.5 h-9 px-4 rounded-full bg-accent text-ink text-sm font-bold disabled:opacity-40" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Pay
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODALS
+     ============================================================ -->
+<div id="payModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 p-4">
+  <div class="w-full max-w-sm rounded-2xl bg-panel border border-line p-5 pop">
+    <h3 class="text-lg font-bold text-center">Complete payment</h3>
+    <p class="text-[11px] text-muted text-center">Paid first — only then is the order sent to the kitchen.</p>
+    <p class="text-sm text-muted text-center mt-1" id="payInfo"></p>
+    <p class="text-3xl font-bold text-accent text-center mt-3 tabular-nums" id="payAmt">₱0.00</p>
+    <div class="grid grid-cols-3 gap-2 mt-4" id="methods">
+      <button data-m="Cash" class="pm h-11 rounded-lg border border-accent bg-accent/10 text-accent text-xs font-bold">Cash</button>
+      <button data-m="GCash" class="pm h-11 rounded-lg border border-line bg-panel2 text-muted text-xs font-bold">GCash</button>
+      <button data-m="Card" class="pm h-11 rounded-lg border border-line bg-panel2 text-muted text-xs font-bold leading-tight">Card<br><span class="text-[9px] font-semibold opacity-80">scan to pay</span></button>
+    </div>
+    <div id="scanBox" class="hidden mt-3 rounded-lg border border-line bg-panel2 p-3">
+      <p class="text-[11px] text-muted mb-2">Manual confirmation only — this system does not verify or process the payment.</p>
+      <div class="flex items-center gap-3">
+        <div id="scanQrWrap" class="hidden w-[84px] h-[84px] rounded-md bg-white p-1 shrink-0">
+          <img id="scanQr" alt="Payment QR" class="w-full h-full object-contain" />
+        </div>
+        <div id="scanQrHint" class="grid w-[84px] h-[84px] rounded-md border border-dashed border-line place-items-center text-center text-[9px] text-muted shrink-0 leading-tight px-1">QR image<br>not set</div>
+        <div class="text-[11px] leading-relaxed min-w-0">
+          <div class="font-bold text-xs text-white" id="scanTitle">Pay via GCash</div>
+          <div class="text-muted" id="scanSub">Send to <strong class="text-white tabular-nums">0917 000 0000</strong></div>
+          <div class="text-muted" id="scanHint">Customer scans the QR</div>
+        </div>
+      </div>
+      <label class="block mt-2">
+        <span class="text-[11px] font-bold text-muted" id="scanRefLabel">GCash reference no. (optional)</span>
+        <input id="scanRef" maxlength="24" placeholder="e.g. 1234 5678 9012"
+          class="mt-1 w-full h-9 px-3 rounded-lg bg-ink border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60 tabular-nums" />
+      </label>
+    </div>
+    <label id="cashReceivedWrap" class="block mt-3">
+      <span class="text-xs font-bold text-muted">Cash received</span>
+      <input id="amountReceived" type="number" min="0" step="0.01" placeholder="0.00"
+        class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white placeholder:text-muted focus:outline-none focus:border-accent/60 tabular-nums" />
+    </label>
+    <p id="changeLine" class="hidden text-xs text-accent text-center mt-2 font-semibold">Change: ₱0.00</p>
+    <div class="grid grid-cols-2 gap-2 mt-4">
+      <button id="payCancel" class="h-10 rounded-lg bg-panel2 border border-line text-sm font-semibold">Cancel</button>
+      <button id="payOk" class="h-10 rounded-lg bg-accent text-ink text-sm font-bold">Pay &amp; send to kitchen</button>
+    </div>
+  </div>
+</div>
+
+<div id="receiptModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-black/75 p-4">
+  <div class="receipt-dialog w-full max-w-sm">
+    <div id="receiptPaper" class="receipt-paper" aria-label="Customer receipt"></div>
+    <div class="no-print receipt-options">
+      <label for="receiptWidth">Receipt paper</label>
+      <select id="receiptWidth"><option value="80">80 mm</option><option value="58">58 mm</option></select>
+      <p>Choose the same paper size in your printer settings. For PDF, select Save as PDF.</p>
+    </div>
+    <div class="no-print grid grid-cols-2 gap-2 mt-3">
+      <button id="receiptClose" class="h-10 rounded-lg bg-panel2 border border-line text-sm font-semibold text-white">Close</button>
+      <button id="receiptPrint" class="h-10 rounded-lg bg-accent text-ink text-sm font-bold">Print</button>
+    </div>
+  </div>
+</div>
+
+<div id="itemModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 p-4">
+  <div class="w-full max-w-md rounded-2xl bg-panel border border-line p-5 pop">
+    <h3 class="text-lg font-bold" id="itemModalTitle">Add menu item</h3>
+    <p class="text-xs text-muted mt-1">Cafe product shown on the cashier POS.</p>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <label class="col-span-2 text-xs font-bold text-muted">Item name
+        <input id="itemName" maxlength="60" placeholder="e.g. Spanish Latte" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white focus:outline-none focus:border-accent/60" /></label>
+      <label class="text-xs font-bold text-muted">Category
+        <select id="itemCategory" class="mt-1 w-full h-10 px-2 rounded-lg bg-ink border border-line text-sm text-white focus:outline-none focus:border-accent/60">
+          <option>Coffee</option><option>Non-coffee</option><option>Pastries</option><option>Meals</option>
+        </select></label>
+      <label class="text-xs font-bold text-muted">Price
+        <input id="itemPrice" type="number" min="1" step="0.01" placeholder="150" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white tabular-nums focus:outline-none focus:border-accent/60" /></label>
+      <label class="col-span-2 text-xs font-bold text-muted">Description
+        <input id="itemDescription" maxlength="90" placeholder="Short description" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white focus:outline-none focus:border-accent/60" /></label>
+      <label class="col-span-2 text-xs font-bold text-muted">Icon (emoji)
+        <input id="itemIcon" maxlength="4" placeholder="☕" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm focus:outline-none focus:border-accent/60" /></label>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button class="close-modal h-10 px-4 rounded-lg bg-panel2 border border-line text-sm font-semibold">Cancel</button>
+      <button id="saveItemBtn" class="h-10 px-4 rounded-lg bg-accent text-ink text-sm font-bold">Save item</button>
+    </div>
+  </div>
+</div>
+
+<div id="ingModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 p-4">
+  <div class="w-full max-w-md rounded-2xl bg-panel border border-line p-5 pop">
+    <h3 class="text-lg font-bold" id="ingModalTitle">Add ingredient</h3>
+    <p class="text-xs text-muted mt-1">Record the supplier receipt and current stock.</p>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <label class="col-span-2 text-xs font-bold text-muted">Ingredient name
+        <input id="ingName" maxlength="60" placeholder="e.g. Espresso beans" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white focus:outline-none focus:border-accent/60" /></label>
+      <label class="text-xs font-bold text-muted">Purchased qty
+        <input id="ingQty" type="number" min="0.01" step="0.01" placeholder="1000" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white tabular-nums focus:outline-none focus:border-accent/60" /></label>
+      <label class="text-xs font-bold text-muted">Unit
+        <select id="ingUnit" class="mt-1 w-full h-10 px-2 rounded-lg bg-ink border border-line text-sm text-white focus:outline-none focus:border-accent/60">
+          <option>g</option><option>ml</option><option>piece</option><option>kg</option><option>liter</option>
+        </select></label>
+      <label class="text-xs font-bold text-muted">Purchase price ₱
+        <input id="ingPrice" type="number" min="0.01" step="0.01" placeholder="850" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white tabular-nums focus:outline-none focus:border-accent/60" /></label>
+      <label class="text-xs font-bold text-muted">Current stock
+        <input id="ingStock" type="number" min="0" step="0.01" placeholder="750" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white tabular-nums focus:outline-none focus:border-accent/60" /></label>
+      <label class="col-span-2 text-xs font-bold text-muted">Low-stock alert at
+        <input id="ingReorder" type="number" min="0" step="0.01" placeholder="200" class="mt-1 w-full h-10 px-3 rounded-lg bg-ink border border-line text-sm text-white tabular-nums focus:outline-none focus:border-accent/60" /></label>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button class="close-modal h-10 px-4 rounded-lg bg-panel2 border border-line text-sm font-semibold">Cancel</button>
+      <button id="saveIngBtn" class="h-10 px-4 rounded-lg bg-accent text-ink text-sm font-bold">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="recipeModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/60 p-4">
+  <div class="w-full max-w-lg rounded-2xl bg-panel border border-line p-5 pop">
+    <h3 class="text-lg font-bold" id="recipeTitle">Product recipe</h3>
+    <p class="text-xs text-muted mt-1">Amount of each ingredient used for one serving. Leave unused at 0.</p>
+    <div id="recipeFields" class="grid grid-cols-2 gap-3 mt-4 max-h-72 overflow-y-auto thin-scroll pr-1"></div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button class="close-modal h-10 px-4 rounded-lg bg-panel2 border border-line text-sm font-semibold">Cancel</button>
+      <button id="saveRecipeBtn" class="h-10 px-4 rounded-lg bg-accent text-ink text-sm font-bold">Save recipe</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[130] hidden">
+  <div class="px-4 py-2.5 rounded-lg bg-panel2 border border-line text-sm font-medium shadow-xl whitespace-nowrap max-w-[90vw]"></div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

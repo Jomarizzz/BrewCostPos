@@ -1,0 +1,48 @@
+/* Brew Haven POS — custom styles (Tailwind handles the rest) */
+  html, body { height: 100%; }
+  body { background:#0b1f33; overscroll-behavior:none; }
+  .no-scrollbar::-webkit-scrollbar { display:none; }
+  .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+  .thin-scroll::-webkit-scrollbar { width:6px; height:6px; }
+  .thin-scroll::-webkit-scrollbar-thumb { background:#1d425f; border-radius:3px; }
+  .card-press:active { transform:scale(.97); }
+  @keyframes pop { from { opacity:0; transform:translateY(6px);} to { opacity:1; transform:none;} }
+  .pop { animation:pop .18s ease; }
+  @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+  .live-dot { animation:pulse-dot 1.4s ease infinite; }
+  .stockbar { height:7px; border-radius:4px; background:#1d425f; overflow:hidden; }
+  .stockbar > i { display:block; height:100%; border-radius:4px; }
+/* Receipt preview and print styling; independent of Tailwind. */
+.receipt-dialog { max-height: 92vh; overflow-y: auto; }
+.receipt-paper { box-sizing: border-box; background: #fff; color: #111; width: 100%;
+  padding: 20px 18px; border-radius: 8px; box-shadow: 0 12px 35px #0006;
+  font: 12px/1.45 "Courier New", monospace; overflow-wrap: anywhere; }
+.receipt-brand { font-size: 18px; line-height: 1.3; font-weight: 800; letter-spacing: .08em; }
+.receipt-center { text-align: center; }
+.receipt-caption { margin-top: 7px; font-weight: bold; letter-spacing: .1em; }
+.receipt-rule { border-top: 1px dashed #333; margin: 8px 0; }
+.receipt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.receipt-row > :last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.receipt-label { font-size: 10px; font-weight: bold; }
+.receipt-item { margin: 5px 0; }
+.receipt-item-name { font-weight: 700; }
+.receipt-item .receipt-row { padding-left: 8px; }
+.receipt-total { font-size: 14px; font-weight: 800; margin-top: 5px; }
+.receipt-thanks { margin-top: 12px; font-weight: bold; }
+.receipt-disclaimer { margin-top: 9px; font-size: 10px; }
+.receipt-demo { margin-top: 8px; border: 1px solid #111; padding: 4px; text-align: center; font-weight: bold; }
+.receipt-options { color: #fff; margin-top: 12px; font-size: 12px; }
+.receipt-options select { margin-left: 8px; background: #102c43; border: 1px solid #557084; border-radius: 5px; color: #fff; padding: 4px; }
+.receipt-options p { color: #b6c6d4; margin: 6px 0 0; }
+@media print {
+  @page { margin: 3mm; }
+  html, body { background: #fff !important; overflow: visible !important; height: auto !important; }
+  body > * { display: none !important; }
+  #receiptModal { display: block !important; position: static !important; background: #fff !important; padding: 0 !important; }
+  #receiptModal .no-print { display: none !important; }
+  #receiptModal .receipt-dialog { max-height: none !important; max-width: none !important; overflow: visible !important; width: 100% !important; }
+  #receiptPaper { width: 72mm !important; max-width: 100% !important; margin: 0 auto !important; padding: 2mm !important; border-radius: 0 !important; box-shadow: none !important; font-size: 10pt; }
+  #receiptPaper[data-width="58"] { width: 50mm !important; font-size: 9pt; }
+  .receipt-brand { font-size: 13pt; }
+  .receipt-item { break-inside: avoid; }
+}
